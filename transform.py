@@ -5,7 +5,6 @@ from collections.abc import Sequence
 import mmcv
 import numpy as np
 import torch
-import cv2
 from mmcv.parallel import DataContainer as DC
 
 
@@ -42,7 +41,7 @@ class LoadImageFromFile(object):
                                 results['img_info']['filename'])
         else:
             filename = results['img_info']['filename']
-        img = cv2.imread(filename)
+        img = mmcv.imread(filename)
         if self.to_float32:
             img = img.astype(np.float32)
         results['filename'] = filename
@@ -210,41 +209,11 @@ class Resize(object):
             bboxes[:, 1::2] = np.clip(bboxes[:, 1::2], 0, img_shape[0] - 1)
             results[key] = bboxes
 
-    def _resize_masks(self, results):
-        for key in results.get('mask_fields', []):
-            if results[key] is None:
-                continue
-            if self.keep_ratio:
-                masks = [
-                    mmcv.imrescale(
-                        mask, results['scale_factor'], interpolation='nearest')
-                    for mask in results[key]
-                ]
-            else:
-                mask_size = (results['img_shape'][1], results['img_shape'][0])
-                masks = [
-                    mmcv.imresize(mask, mask_size, interpolation='nearest')
-                    for mask in results[key]
-                ]
-            results[key] = masks
-
-    def _resize_seg(self, results):
-        for key in results.get('seg_fields', []):
-            if self.keep_ratio:
-                gt_seg = mmcv.imrescale(
-                    results[key], results['scale'], interpolation='nearest')
-            else:
-                gt_seg = mmcv.imresize(
-                    results[key], results['scale'], interpolation='nearest')
-            results['gt_semantic_seg'] = gt_seg
-
     def __call__(self, results):
         if 'scale' not in results:
             self._random_scale(results)
         self._resize_img(results)
         self._resize_bboxes(results)
-        self._resize_masks(results)
-        self._resize_seg(results)
         return results
 
     def __repr__(self):
@@ -312,17 +281,6 @@ class RandomFlip(object):
                 results[key] = self.bbox_flip(results[key],
                                               results['img_shape'],
                                               results['flip_direction'])
-            # flip masks
-            for key in results.get('mask_fields', []):
-                results[key] = [
-                    mmcv.imflip(mask, direction=results['flip_direction'])
-                    for mask in results[key]
-                ]
-
-            # flip segs
-            for key in results.get('seg_fields', []):
-                results[key] = mmcv.imflip(
-                    results[key], direction=results['flip_direction'])
         return results
 
     def __repr__(self):
@@ -351,6 +309,7 @@ class Pad(object):
         assert size is None or size_divisor is None
 
     def _pad_img(self, results):
+        padded_img = None
         if self.size is not None:
             padded_img = mmcv.impad(results['img'], self.size)
         elif self.size_divisor is not None:
@@ -361,26 +320,8 @@ class Pad(object):
         results['pad_fixed_size'] = self.size
         results['pad_size_divisor'] = self.size_divisor
 
-    def _pad_masks(self, results):
-        pad_shape = results['pad_shape'][:2]
-        for key in results.get('mask_fields', []):
-            padded_masks = [
-                mmcv.impad(mask, pad_shape, pad_val=self.pad_val)
-                for mask in results[key]
-            ]
-            if padded_masks:
-                results[key] = np.stack(padded_masks, axis=0)
-            else:
-                results[key] = np.empty((0,) + pad_shape, dtype=np.uint8)
-
-    def _pad_seg(self, results):
-        for key in results.get('seg_fields', []):
-            results[key] = mmcv.impad(results[key], results['pad_shape'][:2])
-
     def __call__(self, results):
         self._pad_img(results)
-        self._pad_masks(results)
-        self._pad_seg(results)
         return results
 
     def __repr__(self):
@@ -444,11 +385,6 @@ class DefaultFormatBundle(object):
             if key not in results:
                 continue
             results[key] = DC(to_tensor(results[key]))
-        if 'gt_masks' in results:
-            results['gt_masks'] = DC(results['gt_masks'], cpu_only=True)
-        if 'gt_semantic_seg' in results:
-            results['gt_semantic_seg'] = DC(
-                to_tensor(results['gt_semantic_seg'][None, ...]), stack=True)
         return results
 
     def __repr__(self):

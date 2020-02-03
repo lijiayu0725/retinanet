@@ -173,6 +173,12 @@ class CocoDataset(Dataset):
 
 
 if __name__ == '__main__':
-    coco = CocoDataset()
+    coco = CocoDataset(pipeline=[LoadImageFromFile(), LoadAnnotations()])
     item = coco.__getitem__(0)
     print(item)
+    img = item['filename']
+    boxes = item['gt_bboxes']
+    labels = item['gt_labels']
+    import mmcv
+
+    mmcv.imshow_det_bboxes(img, boxes, labels, class_names=['background'] + list(coco.CLASSES))
