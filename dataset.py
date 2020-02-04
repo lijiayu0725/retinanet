@@ -24,14 +24,14 @@ class CocoDataset(Dataset):
 
     def __init__(self,
                  ann_file='data/coco2017/annotations/instances_train2017.json',
-                 pipeline=[LoadImageFromFile(),
+                 pipeline=(LoadImageFromFile(),
                            LoadAnnotations(),
                            Resize(img_scale=(1333, 800), keep_ratio=True),
                            RandomFlip(flip_ratio=0.5),
                            Normalize(mean=[123.675, 116.28, 103.53], std=[58.395, 57.12, 57.375], to_rgb=True),
                            Pad(size_divisor=32),
                            DefaultFormatBundle(),
-                           Collect(keys=['img', 'gt_bboxes', 'gt_labels'])],
+                           Collect(keys=['img', 'gt_bboxes', 'gt_labels'])),
                  test_mode=False,
                  filter_empty_gt=True):
         self.ann_file = ann_file

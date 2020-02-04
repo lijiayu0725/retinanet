@@ -23,28 +23,24 @@ class Bottleneck(nn.Module):
         self.downsample = downsample
 
     def forward(self, x):
-        def _inner_forward(x):
-            identity = x
+        identity = x
 
-            out = self.conv1(x)
-            out = self.bn1(out)
-            out = self.relu(out)
+        out = self.conv1(x)
+        out = self.bn1(out)
+        out = self.relu(out)
 
-            out = self.conv2(out)
-            out = self.bn2(out)
-            out = self.relu(out)
+        out = self.conv2(out)
+        out = self.bn2(out)
+        out = self.relu(out)
 
-            out = self.conv3(out)
-            out = self.bn3(out)
+        out = self.conv3(out)
+        out = self.bn3(out)
 
-            if self.downsample is not None:
-                identity = self.downsample(x)
+        if self.downsample is not None:
+            identity = self.downsample(x)
 
-            out += identity
+        out += identity
 
-            return out
-
-        out = _inner_forward(x)
         out = self.relu(out)
 
         return out
@@ -78,7 +74,7 @@ class ResNet(nn.Module):
         50: (Bottleneck, (3, 4, 6, 3))
     }
 
-    def __init__(self, depth, in_channels=3, num_stages=4, strides=(1, 2, 2, 2), out_indices=(0, 1, 2, 3),
+    def __init__(self, depth=50, in_channels=3, num_stages=4, strides=(1, 2, 2, 2), out_indices=(0, 1, 2, 3),
                  frozen_stages=1, norm_eval=True, zero_init_residual=True):
         super(ResNet, self).__init__()
         if depth not in self.arch_settings:
@@ -136,7 +132,6 @@ class ResNet(nn.Module):
                 kaiming_normal_(m)
             elif isinstance(m, nn.BatchNorm2d):
                 constant_(m, 1)
-
         if self.zero_init_residual:
             for m in self.modules():
                 constant_(m.bn3, 0)
@@ -168,7 +163,7 @@ if __name__ == '__main__':
     net = ResNet(50)
     import torch
 
-    net.load_state_dict(torch.load('resnet50.pth'), strict=False)
+    net.load_state_dict(torch.load('/Users/nick/.cache/torch/checkpoints/resnet50-19c8e357.pth'), strict=False)
     x = torch.randn(18, 3, 224, 224)
     y = net(x)
     print(y)
