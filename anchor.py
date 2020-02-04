@@ -198,22 +198,16 @@ def anchor_target_single(flat_anchors,
                          label_channels=1,
                          sampling=True,
                          unmap_outputs=True):
-    inside_flags = anchor_inside_flags(flat_anchors, valid_flags,
-                                       img_meta['img_shape'][:2],
-                                       cfg.allowed_border)
+    inside_flags = valid_flags
     if not inside_flags.any():
         return (None,) * 6
     # assign gt and sample anchors
     anchors = flat_anchors[inside_flags, :]
 
-    if sampling:
-        pass
-    else:
-        bbox_assigner = MaxIoUAssigner()
-        assign_result = bbox_assigner.assign(anchors, gt_bboxes, gt_bboxes_ignore, gt_labels)
-        bbox_sampler = PseudoSampler()
-        sampling_result = bbox_sampler.sample(assign_result, anchors,
-                                              gt_bboxes)
+    bbox_assigner = MaxIoUAssigner()
+    assign_result = bbox_assigner.assign(anchors, gt_bboxes, gt_bboxes_ignore, gt_labels)
+    bbox_sampler = PseudoSampler()
+    sampling_result = bbox_sampler.sample(assign_result, anchors, gt_bboxes)
 
     num_valid_anchors = anchors.shape[0]
     bbox_targets = torch.zeros_like(anchors)
@@ -250,23 +244,6 @@ def anchor_target_single(flat_anchors,
 
     return (labels, label_weights, bbox_targets, bbox_weights, pos_inds,
             neg_inds)
-
-
-def anchor_inside_flags(flat_anchors,
-                        valid_flags,
-                        img_shape,
-                        allowed_border=0):
-    img_h, img_w = img_shape[:2]
-    if allowed_border >= 0:
-        inside_flags = valid_flags & \
-                       (flat_anchors[:, 0] >= -allowed_border).type(torch.uint8) & \
-                       (flat_anchors[:, 1] >= -allowed_border).type(torch.uint8) & \
-                       (flat_anchors[:, 2] < img_w + allowed_border).type(torch.uint8) & \
-                       (flat_anchors[:, 3] < img_h + allowed_border).type(torch.uint8)
-    else:
-        inside_flags = valid_flags
-    return inside_flags
-
 
 def unmap(data, count, inds, fill=0):
     """ Unmap a subset of item (data) back to the original set of items (of

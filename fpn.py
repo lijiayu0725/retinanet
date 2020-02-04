@@ -24,7 +24,7 @@ class FPN(nn.Module):
     def init_weights(self):
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
-                xavier_uniform_(m)
+                xavier_uniform_(m.weight)
 
     def forward(self, inputs):
         layer1, layer2, layer3, layer4 = inputs
